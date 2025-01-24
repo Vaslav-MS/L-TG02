@@ -28,7 +28,8 @@ async def photo(message: Message):
 
 @dp.message(F.photo)
 async def photka(message: Message):
-    await message.answer('Афигеть! Какая фотка!!!')
+    await message.answer('Афигеть, какая фотка! Сохраню себе.')
+    await bot.download(message.photo[-1], destination=f'tmp/{message.photo[-1].file_id}.jpg')
 
 @dp.message(F.text == 'Что такое ИИ?')
 async def aitext(message: Message):
@@ -40,7 +41,15 @@ async def help(message: Message):
 
 @dp.message(CommandStart())
 async def start(message: Message):
-    await message.answer('Hello! Im a bot.')
+    await message.answer(f'Hello! {message.from_user.first_name}, Im a bot.')
+
+@dp.message()
+async def start(message: Message):
+    # await message.send_copy(chat_id=message.chat.id)
+    if message.text.lower() == 'test':
+        await message.answer('Тестируем')
+    else:
+        await message.answer(f'{message.from_user.first_name}, не пиши мне: {message.send_copy(chat_id=message.chat.id).text}.')
 
 async def main():
     await dp.start_polling(bot)
