@@ -1,13 +1,14 @@
-import requests
-import asyncio
+import requests, asyncio, os
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
-
+from aiogram.types import Message, FSInputFile
+from gtts import gTTS
+from aiogoogletrans import Translator
 from config import TOKEN, APIKEY
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+translator = Translator()
 
 def get_weather():
     base_url = 'http://api.weatherapi.com/v1/current.json'
@@ -17,39 +18,30 @@ def get_weather():
 
 @dp.message(Command('weather'))
 async def weather(message: Message):
+    await bot.send_chat_action(message.chat.id, 'typing')
     weather = get_weather()
-    temp_c = weather['current']['temp_c']  # Берём температуру в градусах Цельсия
-    text = f"Температура в Москве сейчас: {temp_c}°C"
-    await message.answer(text)
-
-@dp.message(Command('photo'))
-async def photo(message: Message):
-    await message.answer_photo(photo='https://i.pinimg.com/originals/23/5e/59/235e59a85f3f5a4ee0377d48ec60a555.jpg', caption='Это такая вот фотка.')
+    temp_c = round(weather['current']['temp_c'])  # Берём температуру в градусах Цельсия и округляем
+    text = f"Температура в Москве сейчас: {temp_c}°C" # Вся фраза текстом
+    tts = gTTS(text=text, lang='ru') # Преобразуем в голосовое сообщение
+    tts.save('weather.ogg') # Сохраняем голосовое сообщение
+    audio = FSInputFile('weather.ogg')
+    await bot.send_voice(message.chat.id, audio)
+    os.remove('weather.ogg') # Удаляем голосовое сообщение
 
 @dp.message(F.photo)
 async def photka(message: Message):
-    await message.answer('Афигеть, какая фотка! Сохраню себе.')
-    await bot.download(message.photo[-1], destination=f'tmp/{message.photo[-1].file_id}.jpg')
-
-@dp.message(F.text == 'Что такое ИИ?')
-async def aitext(message: Message):
-    await message.answer('Это искусственный интеллект')
-
-@dp.message(Command('help'))
-async def help(message: Message):
-    await message.answer('Available commands: /start, /help, /photo, /weather')
+    await message.answer('Ухты, какая фотка! Сохраню себе.')
+    await bot.download(message.photo[-1], destination=f'img/{message.photo[-1].file_id}.jpg')
 
 @dp.message(CommandStart())
 async def start(message: Message):
-    await message.answer(f'Hello! {message.from_user.first_name}, Im a bot.')
+    await message.answer(f'Привет, {message.from_user.first_name}! Я бот, который сохраняет все фотки, которые ты мне отправишь. Ещё я могу сообщить тебе голосом текущую температуру в Москве (по команде /weather). И переведу на английский любой текст - просто напиши мне.')
 
 @dp.message()
-async def start(message: Message):
-    # await message.send_copy(chat_id=message.chat.id)
-    if message.text.lower() == 'test':
-        await message.answer('Тестируем')
-    else:
-        await message.answer(f'{message.from_user.first_name}, не пиши мне: {message.send_copy(chat_id=message.chat.id).text}.')
+async def other(message: Message):
+    translation_obj = await translator.translate(message.text, dest='en')
+    translation = translation_obj.text
+    await message.answer(f'{message.from_user.first_name}, по английски это будет:\n{translation}.')
 
 async def main():
     await dp.start_polling(bot)
